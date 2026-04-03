@@ -85,4 +85,80 @@ RSpec.describe TestResult, type: :model do
       expect(different_test).to be_valid
     end
   end
+
+  describe ".upsert_results" do
+    it "inserts new results" do
+      results = [
+        { student_number: "STU001", test_id: "1234", first_name: "Jane", last_name: "Doe",
+          marks_available: 20, marks_obtained: 15, scanned_on: Time.current },
+        { student_number: "STU002", test_id: "1234", first_name: "John", last_name: "Smith",
+          marks_available: 20, marks_obtained: 18, scanned_on: Time.current }
+      ]
+
+      expect { TestResult.upsert_results(results) }.to change(TestResult, :count).by(2)
+    end
+
+    it "keeps the higher marks_obtained on duplicate" do
+      create(:test_result, student_number: "STU001", test_id: "1234", marks_obtained: 10, marks_available: 20)
+
+      results = [
+        { student_number: "STU001", test_id: "1234", first_name: "Jane", last_name: "Doe",
+          marks_available: 20, marks_obtained: 15, scanned_on: Time.current }
+      ]
+
+      TestResult.upsert_results(results)
+
+      record = TestResult.find_by(student_number: "STU001", test_id: "1234")
+      expect(record.marks_obtained).to eq(15)
+    end
+
+    it "does not downgrade marks_obtained on duplicate" do
+      create(:test_result, student_number: "STU001", test_id: "1234", marks_obtained: 15, marks_available: 20)
+
+      results = [
+        { student_number: "STU001", test_id: "1234", first_name: "Jane", last_name: "Doe",
+          marks_available: 20, marks_obtained: 10, scanned_on: Time.current }
+      ]
+
+      TestResult.upsert_results(results)
+
+      record = TestResult.find_by(student_number: "STU001", test_id: "1234")
+      expect(record.marks_obtained).to eq(15)
+    end
+
+    it "keeps the higher marks_available on duplicate" do
+      create(:test_result, student_number: "STU001", test_id: "1234", marks_obtained: 10, marks_available: 15)
+
+      results = [
+        { student_number: "STU001", test_id: "1234", first_name: "Jane", last_name: "Doe",
+          marks_available: 20, marks_obtained: 10, scanned_on: Time.current }
+      ]
+
+      TestResult.upsert_results(results)
+
+      record = TestResult.find_by(student_number: "STU001", test_id: "1234")
+      expect(record.marks_available).to eq(20)
+    end
+
+    it "does nothing with empty array" do
+      expect { TestResult.upsert_results([]) }.not_to change(TestResult, :count)
+    end
+
+    it "updates updated_at on conflict" do
+      create(:test_result, student_number: "STU001", test_id: "1234",
+        marks_obtained: 10, marks_available: 20)
+      original_updated_at = TestResult.find_by(student_number: "STU001", test_id: "1234").updated_at
+
+      sleep(0.01)
+
+      results = [
+        { student_number: "STU001", test_id: "1234", first_name: "Jane", last_name: "Doe",
+          marks_available: 20, marks_obtained: 15, scanned_on: Time.current }
+      ]
+      TestResult.upsert_results(results)
+
+      record = TestResult.find_by(student_number: "STU001", test_id: "1234")
+      expect(record.updated_at).to be > original_updated_at
+    end
+  end
 end
