@@ -61,6 +61,47 @@ class TestResult < ApplicationRecord
     )
   end
 
+  def self.aggregate_for(test_id)
+    records = where(test_id: test_id)
+    return nil if records.empty?
+
+    scores = records.pluck(:marks_obtained, :marks_available).map do |obtained, available|
+      (obtained.to_f / available) * 100
+    end.sort
+
+    count = scores.length
+
+    {
+      mean: scores.sum / count,
+      stddev: population_stddev(scores),
+      min: scores.first,
+      max: scores.last,
+      p25: percentile(scores, 25),
+      p50: percentile(scores, 50),
+      p75: percentile(scores, 75),
+      count: count
+    }
+  end
+
+  def self.population_stddev(scores)
+    mean = scores.sum / scores.length.to_f
+    variance = scores.sum { |s| (s - mean)**2 } / scores.length.to_f
+    Math.sqrt(variance)
+  end
+
+  def self.percentile(sorted_scores, p)
+    return sorted_scores.first.to_f if sorted_scores.length == 1
+
+    rank = (p / 100.0) * (sorted_scores.length - 1)
+    lower = rank.floor
+    upper = rank.ceil
+
+    return sorted_scores[lower].to_f if lower == upper
+
+    weight = rank - lower
+    sorted_scores[lower] + (weight * (sorted_scores[upper] - sorted_scores[lower]))
+  end
+
   private
 
   def obtained_not_exceeding_available
