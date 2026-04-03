@@ -37,3 +37,9 @@
 # Ignore Docker-related files
 /.dockerignore
 /Dockerfile*
+
+/docker-compose*.yml
+
+# Ignore test/spec files
+/spec
+/test

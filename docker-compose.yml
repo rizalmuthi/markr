@@ -1,0 +1,32 @@
+services:
+  db:
+    image: postgres:16
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: markr
+      POSTGRES_DB: markr_production
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    ports:
+      - "4567:4567"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      RAILS_ENV: production
+      DB_HOST: db
+      DB_USERNAME: postgres
+      DB_PASSWORD: markr
+      SECRET_KEY_BASE: dummy_secret_key_base_for_prototype
+      RAILS_LOG_TO_STDOUT: "true"
+
+volumes:
+  pgdata:
