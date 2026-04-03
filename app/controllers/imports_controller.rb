@@ -6,7 +6,7 @@ class ImportsController < ApplicationController
     unless request.content_type == ACCEPTED_CONTENT_TYPE
       return render json: { error: "Content-Type must be #{ACCEPTED_CONTENT_TYPE}" }, status: :unsupported_media_type
     end
-    debugger
+
     body = request.body.read
     if body.bytesize > MAX_BODY_SIZE
       return render json: { error: "Request body too large (max #{MAX_BODY_SIZE / 1.megabyte}MB)" }, status: :content_too_large
