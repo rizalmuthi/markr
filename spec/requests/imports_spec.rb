@@ -179,4 +179,49 @@ RSpec.describe "POST /import", type: :request do
       }.not_to change(TestResult, :count)
     end
   end
+
+  describe "edge case handling of the xml data" do
+    it "ignores <answer> elements and uses summary-marks" do
+      xml = <<~XML
+        <mcq-test-results>
+          <mcq-test-result scanned-on="2017-12-04T12:12:10+11:00">
+            <first-name>Jane</first-name>
+            <last-name>Doe</last-name>
+            <student-number>STU001</student-number>
+            <test-id>1234</test-id>
+            <answer question="1" marks-available="1" marks-awarded="1">A</answer>
+            <answer question="2" marks-available="1" marks-awarded="0">B</answer>
+            <summary-marks available="20" obtained="13" />
+          </mcq-test-result>
+        </mcq-test-results>
+      XML
+
+      post "/import", params: xml, headers: headers
+      expect(response).to have_http_status(:ok)
+
+      result = TestResult.last
+      expect(result.marks_obtained).to eq(13)
+      expect(result.marks_available).to eq(20)
+    end
+
+    it "ignores extra/unknown XML elements" do
+      xml = <<~XML
+        <mcq-test-results>
+          <mcq-test-result scanned-on="2017-12-04T12:12:10+11:00">
+            <first-name>Jane</first-name>
+            <last-name>Doe</last-name>
+            <student-number>STU001</student-number>
+            <test-id>1234</test-id>
+            <some-extra-field>whatever</some-extra-field>
+            <reporting-data>gunk</reporting-data>
+            <summary-marks available="20" obtained="13" />
+          </mcq-test-result>
+        </mcq-test-results>
+      XML
+
+      post "/import", params: xml, headers: headers
+      expect(response).to have_http_status(:ok)
+      expect(TestResult.count).to eq(1)
+    end
+  end
 end
