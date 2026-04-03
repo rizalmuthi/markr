@@ -21,12 +21,12 @@
 
 FactoryBot.define do
   factory :test_result do
-    student_number { "MyString" }
-    test_id { "MyString" }
-    first_name { "MyString" }
-    last_name { "MyString" }
-    marks_available { 1 }
-    marks_obtained { 1 }
-    scanned_on { "2026-04-03 17:05:49" }
+    sequence(:student_number) { |n| "STU#{n.to_s.rjust(6, '0')}" }
+    test_id { "1234" }
+    first_name { "Bob" }
+    last_name { "Superman" }
+    marks_available { 20 }
+    marks_obtained { 15 }
+    scanned_on { Time.current }
   end
 end
