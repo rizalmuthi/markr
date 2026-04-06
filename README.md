@@ -71,3 +71,27 @@ curl http://localhost:4567/results/1234/aggregate
 **Responses:**
 - `200 OK` — aggregate statistics returned
 - `404 Not Found` — no results exist for the given test ID
+
+## Architecture Decision
+
+### Data Model
+
+A single `test_results` table with a composite unique index on `(test_id, student_number)`. 
+This enforces one record per student per test at the database level.
+
+### Duplicate Handling
+
+Duplicates are handled via PostgreSQL `UPSERT` with `GREATEST`:
+- On conflict, `marks_obtained` and `marks_available` are updated to the **higher** of the existing and incoming values.
+- Since PostgreSQL cannot handle duplicate keys in a single `INSERT ... ON CONFLICT`, duplicates within the same XML document are deduplicated in Ruby before the upsert.
+
+### Data Validation
+
+1. Parse the entire XML document.
+2. Validate ALL results before store in the database.
+3. If any result is invalid, reject the entire document with a 422 — zero records are persisted.
+
+### Aggregate Computation
+
+Statistics are computed in Ruby by pulling all scores for a test and calculating in-memory. 
+This is simple, testable, and sufficient for the current dataset sizes.
