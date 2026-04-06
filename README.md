@@ -2,6 +2,13 @@
 
 A data ingestion microservice that accepts multiple-choice exam results from legacy scanning machines via XML and provides aggregate statistics via a JSON API.
 
+## Tech Stack
+
+- **Ruby on Rails 8.1** (API mode)
+- **PostgreSQL 16**
+- **RSpec** for testing
+- **Docker Compose** for deployment
+
 ## How to Build and Run
 
 ### With Docker Compose
@@ -72,7 +79,7 @@ curl http://localhost:4567/results/1234/aggregate
 - `200 OK` — aggregate statistics returned
 - `404 Not Found` — no results exist for the given test ID
 
-## Architecture Decision
+## Architecture Decisions
 
 ### Data Model
 
@@ -95,3 +102,19 @@ Duplicates are handled via PostgreSQL `UPSERT` with `GREATEST`:
 
 Statistics are computed in Ruby by pulling all scores for a test and calculating in-memory. 
 This is simple, testable, and sufficient for the current dataset sizes.
+
+## Future Improvements
+
+### Data ingestion
+
+The current import is synchronous: parse, validate, deduplicate, and upsert all within the HTTP request. For production with larger documents or higher throughput:
+- **Option A**: Enqueue imports to a background job (Solid Queue/Sidekiq), return `202 Accepted` immediately, and let callers poll a status endpoint.
+- **Option B**: Replace the DOM parser with a SAX (streaming) parser and batch-insert rows incrementally to reduce memory usage for very large documents.
+- **Option C**: Combine both — accept and enqueue asynchronously, then process with streaming parser and batched inserts in the background worker.
+
+### Data aggregation
+
+The current aggregate computation loads all rows for a test into Ruby memory, which is fine for now. In the future, for production with real-time dashboards few options:
+- **Option A**: Move aggregation to PostgreSQL using `PERCENTILE_CONT` (single query, no data transfer).
+- **Option B**: Add a `test_aggregates` materialized view or cache table, refreshed on each import.
+- **Option C**: Pre-compute aggregates incrementally on import using running statistics.
